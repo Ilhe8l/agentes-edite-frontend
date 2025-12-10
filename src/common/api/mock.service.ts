@@ -10,25 +10,18 @@ import type {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const mockService = {
-  async login(email: string, password: string): Promise<{ user: User; tokens: AuthTokens }> {
+  async login(username: string, password: string): Promise<{ token: string }> {
     await delay(500)
     
     // Accept any credentials for testing
-    // Just validate that email and password are not empty
-    if (!email || !password) {
-      throw new Error('Email e senha são obrigatórios')
+    // Just validate that username and password are not empty
+    if (!username || !password) {
+      throw new Error('Usuário e senha são obrigatórios')
     }
     
+    // Simulate Django token auth response
     return {
-      user: {
-        id: '1',
-        email,
-        name: email.split('@')[0] || 'Usuário Teste',
-      },
-      tokens: {
-        access: 'mock-access-token',
-        refresh: 'mock-refresh-token',
-      },
+      token: 'mock-access-token-' + username,
     }
   },
 

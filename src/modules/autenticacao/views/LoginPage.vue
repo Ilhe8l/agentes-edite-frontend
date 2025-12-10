@@ -14,13 +14,13 @@
         <CardContent>
           <form @submit.prevent="handleSubmit" class="space-y-4">
             <Input
-              v-model="email"
-              type="email"
-              label="Email"
-              placeholder="seu@email.com"
-              :error="errors.email"
+              v-model="username"
+              type="text"
+              label="Usuário"
+              placeholder="seu_usuario"
+              :error="errors.username"
               :disabled="isLoading"
-              @blur="validateEmail"
+              @blur="validateUsername"
             />
             
             <Input
@@ -72,25 +72,25 @@ const route = useRoute()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 
-const email = ref('')
+const username = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const errors = ref({
-  email: '',
+  username: '',
   password: '',
 })
 
-const validateEmail = () => {
-  if (!email.value) {
-    errors.value.email = 'Email é obrigatório'
+const validateUsername = () => {
+  if (!username.value) {
+    errors.value.username = 'Usuário é obrigatório'
     return false
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    errors.value.email = 'Email inválido'
+  if (username.value.length < 3) {
+    errors.value.username = 'Usuário deve ter no mínimo 3 caracteres'
     return false
   }
-  errors.value.email = ''
+  errors.value.username = ''
   return true
 }
 
@@ -109,10 +109,10 @@ const validatePassword = () => {
 
 const handleSubmit = async () => {
   // Validate all fields
-  const isEmailValid = validateEmail()
+  const isUsernameValid = validateUsername()
   const isPasswordValid = validatePassword()
   
-  if (!isEmailValid || !isPasswordValid) {
+  if (!isUsernameValid || !isPasswordValid) {
     return
   }
 
@@ -121,7 +121,7 @@ const handleSubmit = async () => {
 
   try {
     await authStore.login({
-      email: email.value,
+      username: username.value,
       password: password.value,
     })
 

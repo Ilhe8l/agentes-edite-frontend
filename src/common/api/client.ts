@@ -123,6 +123,16 @@ class ApiClient {
     if (this.useMock) {
       return this.handleMockRequest<T>('POST', url, data)
     }
+    
+    // Debug log para login
+    if (url === '/api-token-auth/') {
+      console.log('🌐 Enviando requisição para Django:', {
+        url: `${this.instance.defaults.baseURL}${url}`,
+        data,
+        headers: this.instance.defaults.headers
+      })
+    }
+    
     const response = await this.instance.post<T>(url, data, config)
     return response.data
   }
