@@ -37,10 +37,10 @@
           </Button>
         </div>
 
-        <!-- Grid Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Grid Layout com altura fixa -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
           <!-- Sessions List -->
-          <div>
+          <div class="flex flex-col">
             <SessionsList
               :sessions="sessions"
               :selected-session-id="selectedSessionId"
@@ -51,7 +51,7 @@
           </div>
 
           <!-- Chat Viewer -->
-          <div>
+          <div class="flex flex-col">
             <ChatViewer
               :session="selectedSession"
               :is-loading="isLoadingSession"
@@ -64,55 +64,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/common/store/auth'
 import { useUiStore } from '@/common/store/ui'
-import { historyService } from '@/services/history.service'
+import { useConversas } from '@/common/composables/useConversas'
 import Button from '@/common/components/ui/Button.vue'
 import Alert from '@/common/components/ui/Alert.vue'
 import SessionsList from '@/modules/historico/components/SessionsList.vue'
 import ChatViewer from '@/modules/historico/components/ChatViewer.vue'
-import type { ConversationSession } from '@/common/types/api.types'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 
-const sessions = ref<ConversationSession[]>([])
-const selectedSession = ref<ConversationSession | null>(null)
+// Usar o composable de conversas com dados reais do Django
+const {
+  conversas,
+  conversaAtual,
+  isLoading,
+  error,
+  carregarConversas,
+  carregarDetalhesConversa,
+  limparConversaAtual,
+  filtrarPorUsuario
+} = useConversas()
+
 const selectedSessionId = ref<string | null>(null)
-const isLoadingSessions = ref(false)
-const isLoadingSession = ref(false)
 const searchQuery = ref('')
 
+// Computed properties para compatibilidade com o template
+const sessions = computed(() => conversas.value)
+const selectedSession = computed(() => conversaAtual.value)
+const isLoadingSessions = computed(() => isLoading.value)
+const isLoadingSession = computed(() => isLoading.value)
+
 const loadSessions = async () => {
-  isLoadingSessions.value = true
   try {
-    sessions.value = await historyService.getSessions()
-  } catch (error) {
-    console.error('Error loading sessions:', error)
+    console.log('🔄 Carregando conversas do Django...')
+    await carregarConversas(1, true)
+    
+    uiStore.showToast({
+      type: 'success',
+      message: `${conversas.value.length} conversas carregadas do Django`,
+    })
+  } catch (err: any) {
+    console.error('❌ Erro ao carregar conversas:', err)
     uiStore.showToast({
       type: 'error',
-      message: 'Erro ao carregar sessões',
+      message: err.message || 'Erro ao carregar conversas do Django',
     })
-  } finally {
-    isLoadingSessions.value = false
   }
 }
 
 const loadSessionDetail = async (sessionId: string) => {
-  isLoadingSession.value = true
   try {
-    selectedSession.value = await historyService.getSessionDetail(sessionId)
-  } catch (error) {
-    console.error('Error loading session detail:', error)
+    console.log('🔍 Carregando detalhes da conversa:', sessionId)
+    await carregarDetalhesConversa(parseInt(sessionId))
+    
+    if (error.value) {
+      throw new Error(error.value)
+    }
+    
+    console.log('✅ Detalhes carregados com sucesso')
+  } catch (err: any) {
+    console.error('❌ Erro ao carregar detalhes:', err)
     uiStore.showToast({
       type: 'error',
-      message: 'Erro ao carregar detalhes da sessão',
+      message: err.message || 'Erro ao carregar detalhes da conversa',
     })
-  } finally {
-    isLoadingSession.value = false
   }
 }
 
@@ -129,29 +149,33 @@ const handleSearch = async (query: string) => {
     return
   }
 
-  isLoadingSessions.value = true
   try {
-    // Try to parse as email or userId
-    const isEmail = query.includes('@')
-    if (isEmail) {
-      sessions.value = await historyService.searchSessions(query)
-    } else {
-      sessions.value = await historyService.searchSessions(undefined, query)
+    console.log('🔍 Buscando por:', query)
+    
+    // Filtrar conversas localmente por enquanto
+    // TODO: Implementar busca no backend Django se necessário
+    const filtradas = filtrarPorUsuario(query)
+    
+    console.log('✅ Encontradas', filtradas.length, 'conversas')
+    
+    if (filtradas.length === 0) {
+      uiStore.showToast({
+        type: 'info',
+        message: 'Nenhuma conversa encontrada para este usuário',
+      })
     }
-  } catch (error) {
-    console.error('Error searching sessions:', error)
+  } catch (err: any) {
+    console.error('❌ Erro na busca:', err)
     uiStore.showToast({
       type: 'error',
-      message: 'Erro ao buscar sessões',
+      message: 'Erro ao buscar conversas',
     })
-  } finally {
-    isLoadingSessions.value = false
   }
 }
 
 const clearSelection = () => {
   selectedSessionId.value = null
-  selectedSession.value = null
+  limparConversaAtual()
 }
 
 const handleLogout = () => {
@@ -164,6 +188,7 @@ const handleLogout = () => {
 }
 
 onMounted(() => {
+  console.log('📱 Iniciando página de histórico...')
   loadSessions()
 })
 </script>
