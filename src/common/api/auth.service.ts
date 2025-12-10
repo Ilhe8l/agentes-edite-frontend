@@ -3,18 +3,22 @@ import type { User, AuthTokens, LoginCredentials } from '@/common/types/user.typ
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> {
-    // Django API usa username, não email
+    console.log('🔐 Tentando login com:', { username: credentials.username })
+    
+    // Django API usa username e password
     const response = await apiClient.post<{ token: string }>('/api-token-auth/', {
-      username: credentials.email,
+      username: credentials.username,
       password: credentials.password
     })
+    
+    console.log('✅ Login bem-sucedido, token recebido')
     
     // Adaptar resposta do Django para o formato esperado
     return {
       user: {
         id: '1',
-        email: credentials.email,
-        name: credentials.email.split('@')[0]
+        email: '', // Django pode retornar email se disponível
+        name: credentials.username
       },
       tokens: {
         access: response.token,

@@ -1,11 +1,11 @@
 <template>
-  <Card>
-    <CardHeader>
+  <Card class="h-full flex flex-col">
+    <CardHeader class="flex-shrink-0">
       <div class="flex items-center justify-between">
         <div>
           <CardTitle>Visualizador de Conversa</CardTitle>
           <CardDescription v-if="session">
-            {{ session.userEmail }} • {{ formatDate(session.startTime) }}
+            {{ formatUserContact(session.userEmail) }} • {{ formatDate(session.startTime) }}
           </CardDescription>
         </div>
         <Badge v-if="session" variant="secondary">
@@ -13,7 +13,7 @@
         </Badge>
       </div>
     </CardHeader>
-    <CardContent>
+    <CardContent class="flex-1 flex flex-col overflow-hidden">
       <!-- Loading State -->
       <div v-if="isLoading" class="space-y-3">
         <div v-for="i in 4" :key="i" class="animate-pulse">
@@ -32,32 +32,36 @@
       </div>
 
       <!-- Chat Messages -->
-      <div v-else ref="messagesContainer" class="space-y-4 max-h-[600px] overflow-y-auto p-4 bg-gray-50 rounded-lg">
-        <div
-          v-for="message in session.messages"
-          :key="message.id"
-          class="flex"
-          :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-        >
-          <div
-            class="max-w-[75%] rounded-lg px-4 py-3 shadow-sm"
-            :class="messageClasses(message.role)"
-          >
-            <div class="flex items-center space-x-2 mb-1">
-              <span class="text-xs font-semibold">
-                {{ message.role === 'user' ? 'Usuário' : 'Bot' }}
-              </span>
-              <span class="text-xs opacity-75">
-                {{ formatTime(message.timestamp) }}
-              </span>
+      <div v-else class="flex-1 overflow-hidden">
+        <div ref="messagesContainer" class="h-full overflow-y-auto p-4 bg-gray-50 rounded-lg">
+          <div class="space-y-4">
+            <div
+              v-for="message in session.messages"
+              :key="message.id"
+              class="flex"
+              :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+            >
+              <div
+                class="max-w-[75%] rounded-lg px-4 py-3 shadow-sm"
+                :class="messageClasses(message.role)"
+              >
+                <div class="flex items-center space-x-2 mb-1">
+                  <span class="text-xs font-semibold">
+                    {{ message.role === 'user' ? 'Usuário' : 'Edite' }}
+                  </span>
+                  <span class="text-xs opacity-75">
+                    {{ formatTime(message.timestamp) }}
+                  </span>
+                </div>
+                <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+              </div>
             </div>
-            <p class="text-sm whitespace-pre-wrap">{{ message.content }}</p>
           </div>
         </div>
       </div>
 
       <!-- Session Info -->
-      <div v-if="session" class="mt-4 pt-4 border-t">
+      <div v-if="session" class="mt-4 pt-4 border-t flex-shrink-0">
         <div class="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p class="text-gray-600">Início da sessão</p>
@@ -106,9 +110,9 @@ const messagesContainer = ref<HTMLElement | null>(null)
 
 const messageClasses = (role: 'user' | 'bot') => {
   if (role === 'user') {
-    return 'bg-primary text-primary-foreground'
+    return 'bg-blue-500 text-white'
   }
-  return 'bg-white border border-gray-200'
+  return 'bg-white border border-gray-200 text-gray-900'
 }
 
 const formatDate = (timestamp: string): string => {
@@ -141,6 +145,19 @@ const calculateDuration = (start: string, end: string): string => {
   }
 }
 
+const formatUserContact = (contact: string): string => {
+  // Se parece com telefone (só números), formatar como telefone
+  if (/^\d+$/.test(contact)) {
+    // Formatar telefone brasileiro: 11988887777 -> (11) 98888-7777
+    if (contact.length === 11) {
+      return `(${contact.slice(0, 2)}) ${contact.slice(2, 7)}-${contact.slice(7)}`
+    }
+    return contact
+  }
+  // Se é email, retornar como está
+  return contact
+}
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -169,5 +186,31 @@ watch(() => props.session, () => {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Estilo customizado para scroll */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Melhorar quebra de texto em mensagens longas */
+.break-words {
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 </style>

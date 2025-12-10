@@ -1,17 +1,17 @@
 <template>
-  <Card>
-    <CardHeader>
+  <Card class="h-full flex flex-col">
+    <CardHeader class="flex-shrink-0">
       <CardTitle>Sessões de Conversa</CardTitle>
       <CardDescription>
         Selecione uma sessão para visualizar a conversa completa
       </CardDescription>
     </CardHeader>
-    <CardContent>
+    <CardContent class="flex-1 flex flex-col overflow-hidden">
       <!-- Search -->
-      <div class="mb-4">
+      <div class="mb-4 flex-shrink-0">
         <Input
           v-model="searchQuery"
-          placeholder="Buscar por email ou ID de usuário..."
+          placeholder="Buscar por telefone ou ID de usuário..."
           @input="handleSearch"
         />
       </div>
@@ -32,42 +32,46 @@
       </div>
 
       <!-- Sessions List -->
-      <div v-else class="space-y-2 max-h-[600px] overflow-y-auto">
-        <div
-          v-for="session in paginatedSessions"
-          :key="session.id"
-          class="p-4 border rounded-lg cursor-pointer transition-all"
-          :class="session.id === selectedSessionId 
-            ? 'bg-primary/10 border-primary' 
-            : 'hover:bg-gray-50 border-gray-200'"
-          @click="selectSession(session.id)"
-        >
-          <div class="flex items-start justify-between">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2">
-                <p class="text-sm font-medium text-gray-900 truncate">
-                  {{ session.userEmail }}
-                </p>
-                <Badge size="sm">
-                  {{ session.messageCount }} msgs
-                </Badge>
+      <div v-else class="flex-1 overflow-hidden">
+        <div class="space-y-2 h-full overflow-y-auto pr-2">
+          <div
+            v-for="session in paginatedSessions"
+            :key="session.id"
+            class="p-4 border rounded-lg cursor-pointer transition-all flex-shrink-0"
+            :class="session.id === selectedSessionId 
+              ? 'bg-primary/10 border-primary' 
+              : 'hover:bg-gray-50 border-gray-200'"
+            @click="selectSession(session.id)"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-2">
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    {{ formatUserEmail(session.userEmail) }}
+                  </p>
+                  <Badge size="sm" variant="secondary">
+                    {{ session.messageCount }} msgs
+                  </Badge>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-xs text-gray-500">
+                    ID: {{ session.userId }}
+                  </p>
+                  <p v-if="session.edital" class="text-xs text-blue-600 font-medium">
+                    {{ session.edital }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    {{ formatRelativeDate(session.startTime) }}
+                  </p>
+                </div>
               </div>
-              <p class="text-xs text-gray-500 mt-1">
-                ID: {{ session.userId }}
-              </p>
-              <p v-if="session.edital" class="text-xs text-gray-600 mt-1">
-                {{ session.edital }}
-              </p>
-              <p class="text-xs text-gray-500 mt-1">
-                {{ formatRelativeDate(session.startTime) }}
-              </p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t">
+      <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t flex-shrink-0">
         <div class="text-sm text-gray-700">
           Página {{ currentPage }} de {{ totalPages }}
         </div>
@@ -154,6 +158,19 @@ const formatRelativeDate = (timestamp: string): string => {
     return timestamp
   }
 }
+
+const formatUserEmail = (contact: string): string => {
+  // Se parece com telefone (só números), formatar como telefone
+  if (/^\d+$/.test(contact)) {
+    // Formatar telefone brasileiro: 11988887777 -> (11) 98888-7777
+    if (contact.length === 11) {
+      return `(${contact.slice(0, 2)}) ${contact.slice(2, 7)}-${contact.slice(7)}`
+    }
+    return contact
+  }
+  // Se é email, retornar como está
+  return contact
+}
 </script>
 
 <style scoped>
@@ -168,5 +185,24 @@ const formatRelativeDate = (timestamp: string): string => {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Estilo customizado para scroll */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>

@@ -1,22 +1,18 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import { mockService } from './mock.service'
 
 class ApiClient {
   private instance: AxiosInstance
   private isRefreshing = false
-  private useMock: boolean
   private failedQueue: Array<{
     resolve: (value?: any) => void
     reject: (reason?: any) => void
   }> = []
 
   constructor() {
-    // Se VITE_API_BASE_URL estiver vazio, usa proxy local (sem baseURL)
     const baseURL = import.meta.env.VITE_API_BASE_URL || ''
-    this.useMock = import.meta.env.VITE_USE_MOCK === 'true'
 
     this.instance = axios.create({
-      baseURL: this.useMock ? 'http://localhost:3001/api' : baseURL,
+      baseURL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -34,7 +30,7 @@ class ApiClient {
         const token = localStorage.getItem('access_token')
 
         if (token) {
-          config.headers.Authorization = `Bearer ${token}`
+          config.headers.Authorization = `Token ${token}`
         }
 
         return config
@@ -110,44 +106,37 @@ class ApiClient {
     )
   }
 
-  // Métodos HTTP com suporte a mock
+  // Métodos HTTP
   async get<T>(url: string, config?: any): Promise<T> {
-    if (this.useMock) {
-      return this.handleMockRequest<T>('GET', url, undefined)
-    }
     const response = await this.instance.get<T>(url, config)
     return response.data
   }
 
   async post<T>(url: string, data?: any, config?: any): Promise<T> {
-    if (this.useMock) {
-      return this.handleMockRequest<T>('POST', url, data)
+    // Debug log para login
+    if (url === '/api-token-auth/') {
+      console.log('🌐 Enviando requisição para Django:', {
+        url: `${this.instance.defaults.baseURL}${url}`,
+        data,
+        headers: this.instance.defaults.headers
+      })
     }
+    
     const response = await this.instance.post<T>(url, data, config)
     return response.data
   }
 
   async put<T>(url: string, data?: any, config?: any): Promise<T> {
-    if (this.useMock) {
-      return this.handleMockRequest<T>('PUT', url, data)
-    }
     const response = await this.instance.put<T>(url, data, config)
     return response.data
   }
 
   async delete<T>(url: string, config?: any): Promise<T> {
-    if (this.useMock) {
-      return this.handleMockRequest<T>('DELETE', url, undefined)
-    }
     const response = await this.instance.delete<T>(url, config)
     return response.data
   }
 
   async uploadFile(url: string, formData: FormData): Promise<any> {
-    if (this.useMock) {
-      // Mock file upload - just return success
-      return { success: true, message: 'File uploaded (mock)' }
-    }
     const response = await this.instance.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -156,57 +145,7 @@ class ApiClient {
     return response.data
   }
 
-  // Handle mock requests
-  private async handleMockRequest<T>(method: string, url: string, data?: any): Promise<T> {
-    console.log(`[MOCK] ${method} ${url}`, data)
 
-    // Login
-    if (url === '/api-token-auth/' && method === 'POST') {
-      return mockService.login(data.username || data.email, data.password) as T
-    }
-
-    // Get editals
-    if (url === '/edital/edital/' && method === 'GET') {
-      return mockService.getEditals() as T
-    }
-
-    // Get engagement metrics
-    if (url === '/metrics/engagement/' && method === 'GET') {
-      return mockService.getEngagementMetrics() as T
-    }
-
-    // Get messages
-    if (url.startsWith('/discussao/mensagem') && method === 'GET') {
-      const urlParams = new URLSearchParams(url.split('?')[1])
-      const editalId = urlParams.get('edital_id') || undefined
-      return mockService.getMessages(editalId) as T
-    }
-
-    // Get sessions/conversations
-    if (url.startsWith('/discussao/conversa') && method === 'GET') {
-      const urlParams = new URLSearchParams(url.split('?')[1])
-      const limit = parseInt(urlParams.get('limit') || '50')
-      const offset = parseInt(urlParams.get('offset') || '0')
-      return mockService.getSessions(limit, offset) as T
-    }
-
-    // Get session detail
-    if (url.match(/\/discussao\/conversa\/[^/]+\/$/) && method === 'GET') {
-      const sessionId = url.split('/').filter(Boolean).pop() || ''
-      return mockService.getSessionDetail(sessionId) as T
-    }
-
-    // Search sessions
-    if (url === '/discussao/conversa/search/' && method === 'GET') {
-      const urlParams = new URLSearchParams(url.split('?')[1])
-      const email = urlParams.get('email') || undefined
-      const userId = urlParams.get('user_id') || undefined
-      return mockService.searchSessions(email, userId) as T
-    }
-
-    // Default mock response
-    return { success: true, message: 'Mock response' } as T
-  }
 }
 
 export const apiClient = new ApiClient()
