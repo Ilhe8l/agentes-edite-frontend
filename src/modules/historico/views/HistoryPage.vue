@@ -26,7 +26,7 @@
         <!-- Info Alert -->
         <Alert>
           <p class="text-sm">
-            <strong>Dica:</strong> Use a busca para filtrar sessões por email ou ID de usuário. Clique em uma sessão para visualizar a conversa completa.
+            <strong>Dica:</strong> Use a busca para filtrar sessões por número de usuário. Clique em uma sessão para visualizar a conversa completa.
           </p>
         </Alert>
 
@@ -45,8 +45,12 @@
               :sessions="sessions"
               :selected-session-id="selectedSessionId"
               :is-loading="isLoadingSessions"
+              :current-page="currentPage"
+              :total-pages="totalPages"
+              :total-items="total"
               @session-select="handleSessionSelect"
               @search="handleSearch"
+              @page-change="handlePageChange"
             />
           </div>
 
@@ -81,35 +85,40 @@ const uiStore = useUiStore()
 // Usar o composable de conversas com dados reais do Django
 const {
   conversas,
+  conversasFiltradas,
   conversaAtual,
   isLoading,
   error,
+  currentPage,
+  totalPages,
+  total,
+  searchQuery,
   carregarConversas,
   carregarDetalhesConversa,
   limparConversaAtual,
+  irParaPagina,
   filtrarPorUsuario
 } = useConversas()
 
 const selectedSessionId = ref<string | null>(null)
-const searchQuery = ref('')
 
 // Computed properties para compatibilidade com o template
-const sessions = computed(() => conversas.value)
+const sessions = computed(() => conversasFiltradas.value)
 const selectedSession = computed(() => conversaAtual.value)
 const isLoadingSessions = computed(() => isLoading.value)
 const isLoadingSession = computed(() => isLoading.value)
 
-const loadSessions = async () => {
+const loadSessions = async (page = 1) => {
   try {
-    console.log('🔄 Carregando conversas do Django...')
-    await carregarConversas(1, true)
+    console.log('[i] Carregando conversas do Django...')
+    await carregarConversas(page)
     
     uiStore.showToast({
       type: 'success',
-      message: `${conversas.value.length} conversas carregadas do Django`,
+      message: `${conversas.value.length} conversas carregadas (página ${currentPage.value} de ${totalPages.value})`,
     })
   } catch (err: any) {
-    console.error('❌ Erro ao carregar conversas:', err)
+    console.error('[x] Erro ao carregar conversas:', err)
     uiStore.showToast({
       type: 'error',
       message: err.message || 'Erro ao carregar conversas do Django',
@@ -119,16 +128,16 @@ const loadSessions = async () => {
 
 const loadSessionDetail = async (sessionId: string) => {
   try {
-    console.log('🔍 Carregando detalhes da conversa:', sessionId)
+    console.log('[i] Carregando detalhes da conversa:', sessionId)
     await carregarDetalhesConversa(parseInt(sessionId))
     
     if (error.value) {
       throw new Error(error.value)
     }
     
-    console.log('✅ Detalhes carregados com sucesso')
+    console.log('[*] Detalhes carregados com sucesso')
   } catch (err: any) {
-    console.error('❌ Erro ao carregar detalhes:', err)
+    console.error('[x] Erro ao carregar detalhes:', err)
     uiStore.showToast({
       type: 'error',
       message: err.message || 'Erro ao carregar detalhes da conversa',
@@ -141,37 +150,16 @@ const handleSessionSelect = (sessionId: string) => {
   loadSessionDetail(sessionId)
 }
 
+const handlePageChange = async (page: number) => {
+  await loadSessions(page)
+}
+
 const handleSearch = async (query: string) => {
   searchQuery.value = query
-  
-  if (!query.trim()) {
-    loadSessions()
-    return
-  }
-
-  try {
-    console.log('🔍 Buscando por:', query)
-    
-    // Filtrar conversas localmente por enquanto
-    // TODO: Implementar busca no backend Django se necessário
-    const filtradas = filtrarPorUsuario(query)
-    
-    console.log('✅ Encontradas', filtradas.length, 'conversas')
-    
-    if (filtradas.length === 0) {
-      uiStore.showToast({
-        type: 'info',
-        message: 'Nenhuma conversa encontrada para este usuário',
-      })
-    }
-  } catch (err: any) {
-    console.error('❌ Erro na busca:', err)
-    uiStore.showToast({
-      type: 'error',
-      message: 'Erro ao buscar conversas',
-    })
-  }
+  console.log('[i] Buscando por:', query)
 }
+
+
 
 const clearSelection = () => {
   selectedSessionId.value = null
@@ -188,7 +176,7 @@ const handleLogout = () => {
 }
 
 onMounted(() => {
-  console.log('📱 Iniciando página de histórico...')
+  console.log('[i] Iniciando página de histórico...')
   loadSessions()
 })
 </script>

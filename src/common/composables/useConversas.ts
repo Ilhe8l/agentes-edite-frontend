@@ -11,10 +11,13 @@ export function useConversas() {
   const currentPage = ref(1)
   const perPage = ref(10)
   const total = ref(0)
+  
+  // Estado para filtros
+  const searchQuery = ref('')
 
   // Getters
   const hasMore = computed(() => {
-    return conversas.value.length < total.value
+    return currentPage.value < totalPages.value
   })
 
   const totalPages = computed(() => {
@@ -22,45 +25,53 @@ export function useConversas() {
   })
 
   // Actions
-  async function carregarConversas(page = 1, reset = false) {
+  async function carregarConversas(page = 1, reset = true) {
     if (isLoading.value) return
 
     isLoading.value = true
     error.value = null
 
     try {
-      console.log('📱 Carregando conversas - página:', page)
+      console.log('[i] Carregando conversas - página:', page)
       
       const response = await djangoService.getConversasAdaptadas(page, perPage.value)
       
-      if (reset) {
-        conversas.value = response.sessions
-      } else {
-        conversas.value.push(...response.sessions)
-      }
+      // Sempre resetar para paginação real (não acumulativa)
+      conversas.value = response.sessions
       
       currentPage.value = response.meta.current_page
       total.value = response.meta.total
       
-      console.log('✅ Conversas carregadas:', response.sessions.length, 'de', total.value)
+      console.log('[*] Conversas carregadas:', response.sessions.length, 'página', page, 'de', Math.ceil(total.value / perPage.value))
       
     } catch (err: any) {
-      console.error('❌ Erro ao carregar conversas:', err)
+      console.error('[x] Erro ao carregar conversas:', err)
       error.value = err.message || 'Erro ao carregar conversas'
     } finally {
       isLoading.value = false
     }
   }
 
-  async function carregarMaisConversas() {
+  async function carregarProximaPagina() {
     if (!hasMore.value || isLoading.value) return
     
-    await carregarConversas(currentPage.value + 1, false)
+    await carregarConversas(currentPage.value + 1)
+  }
+
+  async function carregarPaginaAnterior() {
+    if (currentPage.value <= 1 || isLoading.value) return
+    
+    await carregarConversas(currentPage.value - 1)
+  }
+
+  async function irParaPagina(page: number) {
+    if (page < 1 || page > totalPages.value || isLoading.value) return
+    
+    await carregarConversas(page)
   }
 
   async function recarregarConversas() {
-    currentPage.value = 1
-    await carregarConversas(1, true)
+    await carregarConversas(currentPage.value)
   }
 
   async function carregarDetalhesConversa(conversaId: number) {
@@ -70,15 +81,15 @@ export function useConversas() {
     error.value = null
 
     try {
-      console.log('🔍 Carregando detalhes da conversa:', conversaId)
+      console.log('[i] Carregando detalhes da conversa:', conversaId)
       
       const conversa = await djangoService.getConversaCompleta(conversaId)
       conversaAtual.value = conversa
       
-      console.log('✅ Detalhes carregados:', conversa.messageCount, 'mensagens')
+      console.log('[*] Detalhes carregados:', conversa.messageCount, 'mensagens')
       
     } catch (err: any) {
-      console.error('❌ Erro ao carregar detalhes:', err)
+      console.error('[x] Erro ao carregar detalhes:', err)
       error.value = err.message || 'Erro ao carregar detalhes da conversa'
     } finally {
       isLoading.value = false
@@ -90,18 +101,38 @@ export function useConversas() {
   }
 
   function buscarConversaPorId(id: string): ConversationSession | undefined {
-    return conversas.value.find(c => c.id === id)
+    return conversas.value.find((c: ConversationSession) => c.id === id)
   }
 
-  // Filtros e busca
+  // Conversas filtradas
+  const conversasFiltradas = computed(() => {
+    let resultado = conversas.value
+    
+    // Filtrar por busca (telefone/contato)
+    if (searchQuery.value.trim()) {
+      const query = searchQuery.value.toLowerCase().trim()
+      resultado = resultado.filter((c: ConversationSession) => {
+        const userEmail = c.userEmail?.toLowerCase() || ''
+        const userId = c.userId?.toLowerCase() || ''
+        const phoneOnly = c.userEmail?.replace(/\D/g, '') || ''
+        
+        return userEmail.includes(query) || 
+               userId.includes(query) || 
+               phoneOnly.includes(query.replace(/\D/g, ''))
+      })
+    }
+    
+    return resultado
+  })
+
+  // Filtros e busca (mantidos para compatibilidade)
   const filtrarPorUsuario = (email: string) => {
-    return conversas.value.filter(c => 
-      c.userEmail.toLowerCase().includes(email.toLowerCase())
-    )
+    searchQuery.value = email
+    return conversasFiltradas.value
   }
 
   const filtrarPorPeriodo = (dataInicio: Date, dataFim: Date) => {
-    return conversas.value.filter(c => {
+    return conversas.value.filter((c: ConversationSession) => {
       const dataConversa = new Date(c.startTime)
       return dataConversa >= dataInicio && dataConversa <= dataFim
     })
@@ -110,6 +141,7 @@ export function useConversas() {
   return {
     // Estado
     conversas: computed(() => conversas.value),
+    conversasFiltradas,
     conversaAtual: computed(() => conversaAtual.value),
     isLoading: computed(() => isLoading.value),
     error: computed(() => error.value),
@@ -119,9 +151,14 @@ export function useConversas() {
     hasMore,
     totalPages,
 
+    // Filtros
+    searchQuery,
+
     // Actions
     carregarConversas,
-    carregarMaisConversas,
+    carregarProximaPagina,
+    carregarPaginaAnterior,
+    irParaPagina,
     recarregarConversas,
     carregarDetalhesConversa,
     limparConversaAtual,

@@ -7,13 +7,24 @@
       </CardDescription>
     </CardHeader>
     <CardContent class="flex-1 flex flex-col overflow-hidden">
-      <!-- Search -->
-      <div class="mb-4 flex-shrink-0">
+      <!-- Search and Filters -->
+      <div class="mb-4 flex-shrink-0 space-y-3">
         <Input
           v-model="searchQuery"
           placeholder="Buscar por telefone ou ID de usuário..."
-          @input="handleSearch"
+          @input="debouncedSearch"
         />
+        
+        <div class="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            @click="clearFilters"
+            v-if="searchQuery"
+          >
+            Limpar
+          </Button>
+        </div>
       </div>
 
       <!-- Loading State -->
@@ -57,9 +68,6 @@
                   <p class="text-xs text-gray-500">
                     ID: {{ session.userId }}
                   </p>
-                  <p v-if="session.edital" class="text-xs text-blue-600 font-medium">
-                    {{ session.edital }}
-                  </p>
                   <p class="text-xs text-gray-500">
                     {{ formatRelativeDate(session.startTime) }}
                   </p>
@@ -73,22 +81,22 @@
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t flex-shrink-0">
         <div class="text-sm text-gray-700">
-          Página {{ currentPage }} de {{ totalPages }}
+          Página {{ currentPage }} de {{ totalPages }} ({{ totalItems }} conversas)
         </div>
         <div class="flex space-x-2">
           <Button
             variant="outline"
             size="sm"
-            :disabled="currentPage === 1"
-            @click="currentPage--"
+            :disabled="currentPage === 1 || isLoading"
+            @click="emit('page-change', currentPage - 1)"
           >
             Anterior
           </Button>
           <Button
             variant="outline"
             size="sm"
-            :disabled="currentPage === totalPages"
-            @click="currentPage++"
+            :disabled="currentPage === totalPages || isLoading"
+            @click="emit('page-change', currentPage + 1)"
           >
             Próxima
           </Button>
@@ -116,36 +124,48 @@ export interface SessionsListProps {
   sessions: ConversationSession[]
   selectedSessionId?: string
   isLoading: boolean
+  currentPage?: number
+  totalPages?: number
+  totalItems?: number
 }
 
 const props = withDefaults(defineProps<SessionsListProps>(), {
   isLoading: false,
+  currentPage: 1,
+  totalPages: 1,
+  totalItems: 0,
 })
 
 const emit = defineEmits<{
   'session-select': [id: string]
   'search': [query: string]
+  'page-change': [page: number]
 }>()
 
 const searchQuery = ref('')
-const currentPage = ref(1)
-const itemsPerPage = 10
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const totalPages = computed(() => Math.ceil(props.sessions.length / itemsPerPage))
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage)
-const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage, props.sessions.length))
-
+// Não precisamos mais de paginação local - usamos diretamente as sessions da API
 const paginatedSessions = computed(() => {
-  return props.sessions.slice(startIndex.value, endIndex.value)
+  return props.sessions
 })
 
 const selectSession = (id: string) => {
   emit('session-select', id)
 }
 
-const handleSearch = () => {
-  currentPage.value = 1
-  emit('search', searchQuery.value)
+const debouncedSearch = () => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+  debounceTimer = setTimeout(() => {
+    emit('search', searchQuery.value)
+  }, 300)
+}
+
+const clearFilters = () => {
+  searchQuery.value = ''
+  emit('search', '')
 }
 
 const formatRelativeDate = (timestamp: string): string => {

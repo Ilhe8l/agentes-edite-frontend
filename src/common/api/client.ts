@@ -9,7 +9,13 @@ class ApiClient {
   }> = []
 
   constructor() {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || ''
+    // Sempre usar a URL do Django da variável de ambiente
+    const baseURL = import.meta.env.DJANGO_API_BASE_URL || 'http://localhost:8002'
+    
+    console.log('[i] Configurando API Client:', {
+      baseURL,
+      djangoUrl: import.meta.env.DJANGO_API_BASE_URL
+    })
 
     this.instance = axios.create({
       baseURL,
@@ -115,7 +121,7 @@ class ApiClient {
   async post<T>(url: string, data?: any, config?: any): Promise<T> {
     // Debug log para login
     if (url === '/api-token-auth/') {
-      console.log('🌐 Enviando requisição para Django:', {
+      console.log('[i] Enviando requisição para Django:', {
         url: `${this.instance.defaults.baseURL}${url}`,
         data,
         headers: this.instance.defaults.headers

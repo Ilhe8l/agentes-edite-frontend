@@ -62,7 +62,7 @@
 
       <!-- Session Info -->
       <div v-if="session" class="mt-4 pt-4 border-t flex-shrink-0">
-        <div class="grid grid-cols-2 gap-4 text-sm">
+        <div class="grid grid-cols-3 gap-4 text-sm">
           <div>
             <p class="text-gray-600">Início da sessão</p>
             <p class="font-medium">{{ formatDate(session.startTime) }}</p>
@@ -70,10 +70,6 @@
           <div>
             <p class="text-gray-600">Fim da sessão</p>
             <p class="font-medium">{{ formatDate(session.endTime) }}</p>
-          </div>
-          <div v-if="session.edital">
-            <p class="text-gray-600">Edital</p>
-            <p class="font-medium">{{ session.edital }}</p>
           </div>
           <div>
             <p class="text-gray-600">Duração</p>
