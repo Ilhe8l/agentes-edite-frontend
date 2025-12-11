@@ -1,0 +1,28 @@
+name: Generate .env
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-env:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create .env File
+        run: |
+          touch .env
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env
+          echo "VITE_BASE_URL=${{ secrets.VITE_BASE_URL }}" >> .env
+          echo "VITE_BASE_URL_AUTH=${{ secrets.VITE_BASE_URL_AUTH }}" >> .env
+          echo "VITE_DEV_MOCK=${{ secrets.VITE_DEV_MOCK }}" >> .env
+
+      - name: Upload .env Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-file
+          include-hidden-files: true
+          path: .env
+          retention-days: 1

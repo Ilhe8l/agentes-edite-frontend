@@ -1,0 +1,7 @@
+echo "Executando ESLint..."
+if npx lint-staged; then
+  echo "✔ ESLint executado com sucesso. Você pode prosseguir com o commit."
+else
+  echo "❌ O commit foi bloqueado porque o ESLint encontrou erros. Corrija-os para continuar."
+  exit 1
+fi
